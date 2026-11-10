@@ -19,31 +19,521 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Download Full Project Files
+    - name: Generate Complete Android Project Files
       run: |
-        curl -L -o project.zip "https://raw.githubusercontent.com/actions/starter-workflows/main/ci/android.yml" || true
-        # Project files are auto-generated
+        cat << 'EOF' > settings.gradle
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "MR MUKAM AI"
+        include ':app'
+        EOF
+
+        cat << 'EOF' > build.gradle
+        plugins {
+            id 'com.android.application' version '8.2.2' apply false
+            id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
+        }
+        EOF
+
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/java/com/mukam/jarvis/ai
         mkdir -p app/src/main/java/com/mukam/jarvis/control
         mkdir -p app/src/main/java/com/mukam/jarvis/receiver
         mkdir -p app/src/main/java/com/mukam/jarvis/service
         mkdir -p app/src/main/java/com/mukam/jarvis/voice
-        mkdir -p app/src/main/res/layout
-        mkdir -p app/src/main/res/values
-        mkdir -p app/src/main/res/xml
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+        cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.mukam.jarvis'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.mukam.jarvis"
+                minSdk 26
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+        }
+        dependencies {
+            implementation 'androidx.core:core-ktx:1.13.1'
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.11.0'
+            implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.mukam.jarvis">
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+            <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+            <application
+                android:allowBackup="true"
+                android:icon="@android:drawable/sym_def_app_icon"
+                android:label="MR MUKAM AI"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AppCompat.NoActionBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+                <receiver
+                    android:name=".receiver.JarvisAdminReceiver"
+                    android:description="@string/admin_desc"
+                    android:label="MR MUKAM AI Lock Admin"
+                    android:permission="android.permission.BIND_DEVICE_ADMIN"
+                    android:exported="true">
+                    <meta-data
+                        android:name="android.app.device_admin"
+                        android:resource="@xml/device_admin_sample" />
+                </receiver>
+                <service
+                    android:name=".service.JarvisAccessibilityService"
+                    android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.accessibilityservice.AccessibilityService" />
+                    </intent-filter>
+                    <meta-data
+                        android:name="android.accessibilityservice"
+                        android:resource="@xml/accessibility_service_config" />
+                </service>
+            </application>
+        </manifest>
+        EOF
+
+        cat << 'EOF' > app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">MR MUKAM AI</string>
+            <string name="accessibility_desc">MR MUKAM AI Accessibility Service</string>
+            <string name="admin_desc">MR MUKAM AI Lock Control</string>
+        </resources>
+        EOF
+
+        cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+            android:description="@string/accessibility_desc"
+            android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewClicked"
+            android:accessibilityFeedbackType="feedbackGeneric"
+            android:notificationTimeout="100"
+            android:canRetrieveWindowContent="true"
+            android:canPerformGestures="true"
+            android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews" />
+        EOF
+
+        cat << 'EOF' > app/src/main/res/xml/device_admin_sample.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-policies>
+                <force-lock />
+            </uses-policies>
+        </device-admin>
+        EOF
+
+        cat << 'EOF' > app/src/main/res/layout/activity_main.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="#0A0E17"
+            android:gravity="center_horizontal"
+            android:padding="24dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MR MUKAM AI"
+                android:textColor="#00E5FF"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:layout_marginTop="32dp" />
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="JARVIS Online"
+                android:textColor="#9C27B0"
+                android:textSize="16sp"
+                android:layout_marginTop="12dp" />
+            <TextView
+                android:id="@+id/tvLastCommand"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="प्रतीक्षा में..."
+                android:textColor="#80FFFFFF"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_marginTop="48dp" />
+            <Button
+                android:id="@+id/btnMic"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="48dp"
+                android:backgroundTint="#00E5FF"
+                android:text="बोलें (Mic)"
+                android:textColor="#000000" />
+            <Button
+                android:id="@+id/btnEmergencyStop"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#FF1744"
+                android:text="रोकें (Stop)"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/receiver/JarvisAdminReceiver.kt
+        package com.mukam.jarvis.receiver
+        import android.app.admin.DeviceAdminReceiver
+        import android.content.Context
+        import android.content.Intent
+        import android.widget.Toast
+        class JarvisAdminReceiver : DeviceAdminReceiver() {
+            override fun onEnabled(context: Context, intent: Intent) {
+                Toast.makeText(context, "MR MUKAM AI: लॉक सक्षम", Toast.LENGTH_SHORT).show()
+            }
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/service/JarvisAccessibilityService.kt
+        package com.mukam.jarvis.service
+        import android.accessibilityservice.AccessibilityService
+        import android.accessibilityservice.GestureDescription
+        import android.graphics.Path
+        import android.view.accessibility.AccessibilityEvent
+        import android.view.accessibility.AccessibilityNodeInfo
+        class JarvisAccessibilityService : AccessibilityService() {
+            companion object {
+                var instance: JarvisAccessibilityService? = null
+                    private set
+            }
+            override fun onServiceConnected() {
+                super.onServiceConnected()
+                instance = this
+            }
+            override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+            override fun onInterrupt() {}
+            override fun onDestroy() {
+                super.onDestroy()
+                instance = null
+            }
+            fun clickByText(targetText: String): Boolean {
+                val rootNode = rootInActiveWindow ?: return false
+                val nodes = rootNode.findAccessibilityNodeInfosByText(targetText)
+                if (!nodes.isNullOrEmpty()) {
+                    for (node in nodes) {
+                        if (node.isClickable) {
+                            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+            fun swipeVertical(scrollUp: Boolean) {
+                val displayMetrics = resources.displayMetrics
+                val startY = if (scrollUp) displayMetrics.heightPixels * 0.75f else displayMetrics.heightPixels * 0.25f
+                val endY = if (scrollUp) displayMetrics.heightPixels * 0.25f else displayMetrics.heightPixels * 0.75f
+                val centerX = displayMetrics.widthPixels / 2f
+                val path = Path().apply {
+                    moveTo(centerX, startY)
+                    lineTo(centerX, endY)
+                }
+                val gesture = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
+                    .build()
+                dispatchGesture(gesture, null, null)
+            }
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/control/HardwareController.kt
+        package com.mukam.jarvis.control
+        import android.app.admin.DevicePolicyManager
+        import android.content.ComponentName
+        import android.content.Context
+        import android.hardware.camera2.CameraManager
+        import android.media.AudioManager
+        import com.mukam.jarvis.receiver.JarvisAdminReceiver
+        class HardwareController(private val context: Context) {
+            private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            private val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            private val adminComponent = ComponentName(context, JarvisAdminReceiver::class.java)
+            fun setFlashlight(enabled: Boolean): Boolean {
+                return try {
+                    val cameraId = cameraManager.cameraIdList[0]
+                    cameraManager.setTorchMode(cameraId, enabled)
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            fun adjustVolume(increase: Boolean) {
+                val direction = if (increase) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
+            }
+            fun lockScreen(): Boolean {
+                return if (devicePolicyManager.isAdminActive(adminComponent)) {
+                    devicePolicyManager.lockNow()
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/ai/GeminiBrain.kt
+        package com.mukam.jarvis.ai
+        import kotlinx.coroutines.Dispatchers
+        import kotlinx.coroutines.withContext
+        import org.json.JSONArray
+        import org.json.JSONObject
+        import java.io.OutputStreamWriter
+        import java.net.HttpURLConnection
+        import java.net.URL
+        class GeminiBrain(private val apiKey: String) {
+            suspend fun processUserCommand(query: String): JSONObject = withContext(Dispatchers.IO) {
+                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+                val requestBody = JSONObject().apply {
+                    put("contents", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("parts", JSONArray().apply {
+                                put(JSONObject().apply { put("text", query) })
+                            })
+                        })
+                    })
+                }
+                OutputStreamWriter(conn.outputStream).use { it.write(requestBody.toString()) }
+                val response = conn.inputStream.bufferedReader().use { it.readText() }
+                val responseJson = JSONObject(response)
+                val text = responseJson.getJSONArray("candidates")
+                    .getJSONObject(0).getJSONObject("content")
+                    .getJSONArray("parts").getJSONObject(0).getString("text").trim()
+                return@withContext try {
+                    JSONObject(text)
+                } catch (e: Exception) {
+                    JSONObject().apply {
+                        put("type", "SPEAK")
+                        put("reply", text)
+                    }
+                }
+            }
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/voice/JarvisVoiceEngine.kt
+        package com.mukam.jarvis.voice
+        import android.content.Context
+        import android.content.Intent
+        import android.os.Bundle
+        import android.speech.RecognitionListener
+        import android.speech.RecognizerIntent
+        import android.speech.SpeechRecognizer
+        import android.speech.tts.TextToSpeech
+        import java.util.Locale
+        class JarvisVoiceEngine(
+            private val context: Context,
+            private val onResult: (String) -> Unit,
+            private val onStatusUpdate: (String) -> Unit
+        ) : RecognitionListener {
+            private var speechRecognizer: SpeechRecognizer? = null
+            private var textToSpeech: TextToSpeech? = null
+            init {
+                textToSpeech = TextToSpeech(context) { status ->
+                    if (status == TextToSpeech.SUCCESS) {
+                        textToSpeech?.language = Locale("hi", "IN")
+                    }
+                }
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                    setRecognitionListener(this@JarvisVoiceEngine)
+                }
+            }
+            fun startListening() {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+                }
+                speechRecognizer?.startListening(intent)
+                onStatusUpdate("सुन रहा हूँ...")
+            }
+            fun stopListening() {
+                speechRecognizer?.stopListening()
+                onStatusUpdate("शांत")
+            }
+            fun speak(text: String) {
+                textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ID")
+            }
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    onResult(matches[0])
+                }
+                startListening()
+            }
+            override fun onError(error: Int) { startListening() }
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+            override fun onPartialResults(partialResults: Bundle?) {}
+        }
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/mukam/jarvis/MainActivity.kt
+        package com.mukam.jarvis
+        import android.app.admin.DevicePolicyManager
+        import android.content.ComponentName
+        import android.content.Context
+        import android.content.Intent
+        import android.content.pm.PackageManager
+        import android.os.Bundle
+        import android.widget.Button
+        import android.widget.TextView
+        import androidx.appcompat.app.AppCompatActivity
+        import androidx.core.app.ActivityCompat
+        import androidx.core.content.ContextCompat
+        import androidx.lifecycle.lifecycleScope
+        import com.mukam.jarvis.ai.GeminiBrain
+        import com.mukam.jarvis.control.HardwareController
+        import com.mukam.jarvis.receiver.JarvisAdminReceiver
+        import com.mukam.jarvis.service.JarvisAccessibilityService
+        import com.mukam.jarvis.voice.JarvisVoiceEngine
+        import kotlinx.coroutines.launch
+        import org.json.JSONObject
+
+        class MainActivity : AppCompatActivity() {
+            private lateinit var voiceEngine: JarvisVoiceEngine
+            private lateinit var hardwareController: HardwareController
+            private var geminiBrain: GeminiBrain? = null
+            private lateinit var tvStatus: TextView
+            private lateinit var tvLastCommand: TextView
+            private lateinit var btnMic: Button
+            private lateinit var btnEmergencyStop: Button
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                setContentView(R.layout.activity_main)
+
+                tvStatus = findViewById(R.id.tvStatus)
+                tvLastCommand = findViewById(R.id.tvLastCommand)
+                btnMic = findViewById(R.id.btnMic)
+                btnEmergencyStop = findViewById(R.id.btnEmergencyStop)
+
+                hardwareController = HardwareController(this)
+                geminiBrain = GeminiBrain("DEMO_KEY")
+
+                voiceEngine = JarvisVoiceEngine(
+                    context = this,
+                    onResult = { text -> handleVoiceInput(text) },
+                    onStatusUpdate = { status -> runOnUiThread { tvStatus.text = status } }
+                )
+
+                btnMic.setOnClickListener {
+                    if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.RECORD_AUDIO), 101)
+                    } else {
+                        voiceEngine.startListening()
+                    }
+                }
+
+                btnEmergencyStop.setOnClickListener {
+                    voiceEngine.stopListening()
+                    tvStatus.text = "रोक दिया गया"
+                }
+            }
+
+            private fun handleVoiceInput(text: String) {
+                tvLastCommand.text = "सुना: $text"
+                val lower = text.lowercase()
+                when {
+                    lower.contains("torch on") || lower.contains("टॉर्च चालू") -> {
+                        hardwareController.setFlashlight(true)
+                        voiceEngine.speak("टॉर्च चालू कर दी है")
+                    }
+                    lower.contains("torch off") || lower.contains("टॉर्च बंद") -> {
+                        hardwareController.setFlashlight(false)
+                        voiceEngine.speak("टॉर्च बंद कर दी है")
+                    }
+                    lower.contains("lock") || lower.contains("स्क्रीन लॉक") -> {
+                        hardwareController.lockScreen()
+                    }
+                    else -> {
+                        lifecycleScope.launch {
+                            try {
+                                val res = geminiBrain?.processUserCommand(text)
+                                val reply = res?.optString("reply", "जी सर") ?: "जी सर"
+                                voiceEngine.speak(reply)
+                            } catch (e: Exception) {
+                                voiceEngine.speak("जी सर")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        EOF
+
+    - name: Download and Setup Gradle Wrapper
+      run: |
+        gradle wrapper --gradle-version 8.4
+        chmod +x gradlew
 
     - name: Build Debug APK
-      run: |
-        echo "Building MR MUKAM AI..."
-        chmod +x gradlew || true
-        ./gradlew assembleDebug --stacktrace || true
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-    - name: Upload APK Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: MR-MUKAM-AI-APK
-        path: app/build/outputs/apk/debug/*.apk
+        path: app/build/outputs/apk/debug/app-debug.apk
+
